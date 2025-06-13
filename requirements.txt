@@ -1,0 +1,3 @@
+routellm[serve,eval]
+uvicorn
+fastapi
