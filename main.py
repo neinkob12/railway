@@ -1,22 +1,27 @@
 import os
 from routellm.controller import Controller
 from routellm.openai_server import app
+import uvicorn
 
-# Set environment variables (Railway will override these with your actual secrets)
-os.environ["OPENAI_API_KEY"] = os.environ.get("OPENAI_API_KEY", "")
-os.environ["GROQ_API_KEY"] = os.environ.get("GROQ_API_KEY", "")
+# Initialize controller when server starts
+@app.on_event("startup")
+async def initialize_controller():
+    # Get API keys from Railway environment variables
+    os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "")
+    os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY", "")
+    
+    # Create controller instance and attach to app state
+    app.state.controller = Controller(
+        routers=["mf"],
+        strong_model="openai/gpt-4",
+        weak_model="groq/llama3-8b-8192"
+    )
 
-# Initialize RouteLLM controller
-controller = Controller(
-    routers=["mf"],
-    strong_model="openai/gpt-4",
-    weak_model="groq/llama3-8b-8192"
-)
-
-# The app variable is imported from routellm.openai_server
-# This is a FastAPI application that's already configured to use your controller
+# Add health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "ready", "models": ["gpt-4", "llama3-8b-8192"]}
 
 if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
+    port = int(os.environ.get("PORT", 8080))
     uvicorn.run(app, host="0.0.0.0", port=port)
